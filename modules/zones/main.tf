@@ -1,8 +1,20 @@
-resource "aws_route53_zone" "this" {
-  for_each = {
-    for k, v in var.zones : "${k}-${lookup(try(v.vpc[0], {}), "vpc_id", "global")}" => v if var.create
+locals {
+  # Create a map with unique keys by adding a suffix to duplicate domain names
+  unique_zones = {
+    for idx, zone in flatten([
+      for key, value in var.zones : {
+        key   = key
+        value = value
+      }
+    ]) :
+    "${zone.key}_${idx}" => merge(zone.value, { original_key = zone.key })
   }
-  name          = lookup(each.value, "domain_name", each.key)
+}
+
+resource "aws_route53_zone" "this" {
+  for_each = { for k, v in local.unique_zones : k => v if var.create }
+
+  name          = lookup(each.value, "domain_name", each.value.original_key)
   comment       = lookup(each.value, "comment", null)
   force_destroy = lookup(each.value, "force_destroy", false)
 
