@@ -1,13 +1,8 @@
 locals {
-  # Create a map with unique keys by adding a suffix to duplicate domain names
+  # Create a map with unique keys by adding a hash of the domain name
   unique_zones = {
-    for idx, zone in flatten([
-      for key, value in var.zones : {
-        key   = key
-        value = value
-      }
-    ]) :
-    "${zone.key}_${idx}" => merge(zone.value, { original_key = zone.key })
+    for key, value in var.zones :
+    "${key}_${sha256(key)}" => merge(value, { original_key = key })
   }
 }
 
