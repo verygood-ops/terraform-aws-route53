@@ -8,7 +8,7 @@ locals {
 resource "aws_route53_zone" "this" {
   for_each = { for k, v in local.unique_zones : k => v if var.create }
 
-  name          = each.key
+  name          = lookup(each.value, "domain_name", each.value.original_key)
   comment       = lookup(each.value, "comment", null)
   force_destroy = lookup(each.value, "force_destroy", false)
 
