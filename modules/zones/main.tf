@@ -1,8 +1,14 @@
-resource "aws_route53_zone" "this" {
-  for_each = {
-    for k, v in var.zones : "${k}-${lookup(try(v.vpc[0], {}), "vpc_id", "global")}" => v if var.create
+locals {
+  unique_zones = {
+    for key, value in var.zones :
+    "${key}_${sha256(jsonencode(value))}" => merge(value, { original_key = key })
   }
-  name          = lookup(each.value, "domain_name", each.key)
+}
+
+resource "aws_route53_zone" "this" {
+  for_each = { for k, v in local.unique_zones : k => v if var.create }
+
+  name          = lookup(each.value, "domain_name", each.value.original_key)
   comment       = lookup(each.value, "comment", null)
   force_destroy = lookup(each.value, "force_destroy", false)
 
