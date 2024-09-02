@@ -1,22 +1,22 @@
 locals {
-  # Create a map with unique keys by adding a hash of the domain name
+  # Create a map with unique keys by combining the domain name and a hash of the entire value
   unique_zones = {
     for key, value in var.zones :
-    "${key}_${sha256(key)}" => merge(value, { original_key = key })
+    "${value.domain_name}_${sha256(jsonencode(value))}" => merge(value, { original_key = key })
   }
 }
 
 resource "aws_route53_zone" "this" {
   for_each = { for k, v in local.unique_zones : k => v if var.create }
 
-  name          = lookup(each.value, "domain_name", each.value.original_key)
-  comment       = lookup(each.value, "comment", null)
-  force_destroy = lookup(each.value, "force_destroy", false)
+  name          = v.domain_name
+  comment       = lookup(v, "comment", null)
+  force_destroy = lookup(v, "force_destroy", false)
 
-  delegation_set_id = lookup(each.value, "delegation_set_id", null)
+  delegation_set_id = lookup(v, "delegation_set_id", null)
 
   dynamic "vpc" {
-    for_each = try(tolist(lookup(each.value, "vpc", [])), [lookup(each.value, "vpc", {})])
+    for_each = try(tolist(lookup(v, "vpc", [])), [lookup(v, "vpc", {})])
 
     content {
       vpc_id     = vpc.value.vpc_id
@@ -25,7 +25,7 @@ resource "aws_route53_zone" "this" {
   }
 
   tags = merge(
-    lookup(each.value, "tags", {}),
+    lookup(v, "tags", {}),
     var.tags
   )
 }
